@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>Landing Page Generator</title>
+
+<style>
+body {
+  font-family: Arial;
+  background:#0f172a;
+  color:white;
+  padding:40px;
+}
+
+input, select, button {
+  padding:12px;
+  margin:8px 0;
+  width:100%;
+  border-radius:8px;
+  border:none;
+}
+
+button {
+  background:#22c55e;
+  font-weight:bold;
+  cursor:pointer;
+}
+
+#output {
+  background:white;
+  color:black;
+  padding:20px;
+  margin-top:20px;
+  border-radius:10px;
+  white-space:pre-wrap;
+}
+</style>
+</head>
+
+<body>
+
+<h1>🚀 Landing Page Generator</h1>
+
+<input id="product" placeholder="اسم المنتج">
+<input id="audience" placeholder="الفئة المستهدفة">
+
+<select id="goal">
+  <option>بيع منتج</option>
+  <option>جمع إيميلات</option>
+  <option>حجز مواعيد</option>
+</select>
+
+<button onclick="generate()">توليد الصفحة</button>
+
+<div id="output"></div>
+
+<script>
+
+function pick(arr){
+  return arr[Math.floor(Math.random()*arr.length)]
+}
+
+function generate(){
+
+  const name = document.getElementById("product").value
+  const audience = document.getElementById("audience").value
+  const goal = document.getElementById("goal").value
+
+  const headlines = [
+    `أفضل حل لـ ${audience}`,
+    `ضاعف نتائجك مع ${name}`,
+    `${name} سيغير طريقتك`,
+    `حل ذكي لـ ${audience}`
+  ]
+
+  const headline = pick(headlines)
+
+  const html = `
+<section style="font-family:Arial;padding:40px;text-align:center">
+<h1>${headline}</h1>
+<h2>${name}</h2>
+<p>مصمم خصيصًا لـ ${audience}</p>
+
+<ul style="text-align:right;max-width:400px;margin:auto">
+<li>سهل الاستخدام</li>
+<li>نتائج سريعة</li>
+<li>بدون تعقيد</li>
+<li>جاهز للعمل فورًا</li>
+</ul>
+
+<button style="padding:15px 30px;font-size:18px">
+ابدأ الآن
+</button>
+
+</section>
+`
+
+  document.getElementById("output").textContent = html
+}
+
+</script>
+
+</body>
+</html>
