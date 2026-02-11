@@ -1,366 +1,279 @@
-<!DOCTYPE html>
-<html lang="en" id="htmlTag">
+import React, { useState, useEffect } from 'react';
+import { 
+  Wand2, Sun, Moon, Sparkles, Zap, Download, RefreshCcw, Copy, 
+  CheckCircle2, ArrowRight, MousePointer2, Rocket, Shield
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+
+// --- Configuration ---
+const API_KEY = "AIzaSyCBgwlvA70Xs_ri2-YCO7t2flAvua5Qo2Y";
+const MODEL_NAME = "gemini-2.5-flash-preview-09-2025";
+
+const LANGUAGES = {
+  ar: { dir: 'rtl', label: 'العربية' },
+  fr: { dir: 'ltr', label: 'Français' }
+};
+
+const TRANSLATIONS = {
+  ar: {
+    title: "منشئ صفحات الهبوط الذكي",
+    home: {
+      hero: "اصنع صفحة هبوط عالمية في ثوانٍ",
+      sub: "استخدم قوة الذكاء الاصطناعي لبناء واجهات احترافية، تصدير الكود، وإطلاق مشروعك فوراً.",
+      start: "ابدأ البناء الآن",
+      features: "المميزات",
+    },
+    steps: ["التعريف", "المحتوى", "التفاصيل"],
+    fields: { name: "اسم المنتج", type: "النوع", cat: "الفئة", desc: "الوصف" },
+    actions: { ai: "توليد بالذكاء الاصطناعي", next: "التالي", prev: "السابق", export: "تصدير HTML", copy: "نسخ الكود", back: "العودة" },
+    status: { generating: "جاري التوليد...", success: "تم بنجاح", error: "حدث خطأ في الاتصال" }
+  },
+  fr: {
+    title: "AI Landing Builder",
+    home: {
+      hero: "Créez une Landing Page Pro en secondes",
+      sub: "Utilisez l'IA pour construire des interfaces, exporter le code et lancer votre projet instantanément.",
+      start: "Commencer à bâtir",
+      features: "Fonctionnalités",
+    },
+    steps: ["Définir", "Contenu", "Détails"],
+    fields: { name: "Produit", type: "Type", cat: "Catégorie", desc: "Description" },
+    actions: { ai: "Générer avec l'IA", next: "Suivant", prev: "Précédent", export: "Exporter HTML", copy: "Copier", back: "Retour" },
+    status: { generating: "Génération...", success: "Succès", error: "Erreur de connexion" }
+  }
+};
+
+// --- API Helper with Exponential Backoff ---
+const callGeminiAI = async (prompt, retries = 5, delay = 1000) => {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${API_KEY}`;
+  
+  const payload = {
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: "OBJECT",
+        properties: {
+          headline: { type: "STRING" },
+          subheadline: { type: "STRING" },
+          ctaText: { type: "STRING" },
+          features: {
+            type: "ARRAY",
+            items: {
+              type: "OBJECT",
+              properties: {
+                title: { type: "STRING" },
+                desc: { type: "STRING" }
+              }
+            }
+          }
+        }
+      }
+    }
+  };
+
+  for (let i = 0; i < retries; i++) {
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) throw new Error("API Error");
+      const result = await response.json();
+      return JSON.parse(result.candidates[0].content.parts[0].text);
+    } catch (err) {
+      if (i === retries - 1) throw err;
+      await new Error(delay * Math.pow(2, i));
+    }
+  }
+};
+
+// --- Main App ---
+export default function App() {
+  const [view, setView] = useState('home');
+  const [lang, setLang] = useState('ar');
+  const [step, setStep] = useState(1);
+  const [theme, setTheme] = useState('dark');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [copyFeedback, setCopyFeedback] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const t = TRANSLATIONS[lang];
+
+  const [formData, setFormData] = useState({
+    productName: '',
+    type: '',
+    category: '',
+    headline: 'عنوان جذاب لمنتجك الجديد',
+    subheadline: 'وصف فريد يشرح القيمة المضافة التي تقدمها لعملائك بطريقة ذكية.',
+    ctaText: 'ابدأ الآن',
+    features: [
+      { title: 'سرعة فائقة', desc: 'توصيل الخدمات في أجزاء من الثانية.' },
+      { title: 'أمان متكامل', desc: 'حماية بياناتك بأحدث تقنيات التشفير.' },
+      { title: 'دعم فني', desc: 'فريق عمل متواجد لمساعدتك على مدار الساعة.' }
+    ]
+  });
+
+  const handleAICompose = async () => {
+    if (!formData.productName) return;
+    setIsGenerating(true);
+    setErrorMsg("");
+    
+    const prompt = `Generate a high-converting landing page content in ${lang === 'ar' ? 'Arabic' : 'French'} for a product named "${formData.productName}". 
+    The product type is ${formData.type} and category is ${formData.category}. 
+    Return JSON with headline, subheadline, ctaText, and 3 features (title and desc).`;
+
+    try {
+      const data = await callGeminiAI(prompt);
+      setFormData(prev => ({ ...prev, ...data }));
+    } catch (err) {
+      setErrorMsg(t.status.error);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleDownload = () => {
+    const isRtl = lang === 'ar';
+    const html = `<!DOCTYPE html>
+<html lang="${lang}" dir="${isRtl ? 'rtl' : 'ltr'}">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Landing Page Architect | Professional Edition</title>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${formData.productName}</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Cairo:wght@400;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --primary-font: 'Inter', sans-serif;
-            --heading-font: 'Playfair Display', serif;
-        }
-        [lang="ar"] {
-            --primary-font: 'Cairo', sans-serif;
-        }
-        body {
-            font-family: var(--primary-font);
-            background-color: #ffffff;
-            color: #000000;
-            overflow-x: hidden;
-        }
-        .monochrome-panel {
-            background: #ffffff;
-            border: 1px solid #000000;
-            box-shadow: 10px 10px 0px 0px #000000;
-        }
-        .btn-classic {
-            background-color: #000000;
-            color: #ffffff;
-            transition: all 0.3s ease;
-            border: 1px solid #000000;
-        }
-        .btn-classic:hover {
-            background-color: #ffffff;
-            color: #000000;
-        }
-        .loader {
-            border-top-color: #000000;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: #f3f4f6;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #000000;
-        }
-        iframe {
-            background: #ffffff;
-            border: 1px solid #e5e7eb;
-        }
-        h1 {
-            font-family: var(--heading-font);
-        }
-    </style>
 </head>
-<body class="min-h-screen">
-
-    <div class="max-w-7xl mx-auto px-4 py-8 lg:py-12">
-        <!-- Header & Lang -->
-        <div class="flex justify-between items-center mb-12">
-            <div class="text-xs font-black uppercase tracking-tighter">Edition 2.0</div>
-            <div class="inline-flex bg-white p-1 border border-black">
-                <button onclick="toggleLanguage('en')" id="langEn" class="px-6 py-1.5 text-xs font-bold transition-all bg-black text-white">EN</button>
-                <button onclick="toggleLanguage('ar')" id="langAr" class="px-6 py-1.5 text-xs font-bold transition-all text-black hover:bg-gray-100">عربي</button>
+<body class="bg-white text-black font-sans">
+    <nav class="p-6 flex justify-between items-center border-b">
+        <div class="font-bold text-xl">${formData.productName}</div>
+        <button class="px-6 py-2 rounded-full bg-black text-white">${formData.ctaText}</button>
+    </nav>
+    <header class="py-24 px-8 text-center max-w-4xl mx-auto">
+        <h1 class="text-6xl font-black mb-6">${formData.headline}</h1>
+        <p class="text-xl text-gray-600 mb-10">${formData.subheadline}</p>
+        <button class="px-10 py-4 rounded-xl bg-black text-white font-bold text-lg">${formData.ctaText}</button>
+    </header>
+    <section class="py-20 px-8 grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+        ${formData.features.map(f => `
+            <div class="p-8 border rounded-2xl">
+                <h3 class="text-xl font-bold mb-2">${f.title}</h3>
+                <p class="text-gray-500">${f.desc}</p>
             </div>
-        </div>
-
-        <header class="text-center mb-20 space-y-6">
-            <div class="inline-block px-4 py-1 border border-black text-black text-xs font-bold uppercase tracking-widest">
-                <span data-i18n="poweredBy">Powered by Gemini 2.5 Flash</span>
-            </div>
-            <h1 class="text-5xl lg:text-7xl font-bold tracking-tighter text-black">
-                <span data-i18n="titlePart1">AI Landing Page</span> <br>
-                <span class="italic" data-i18n="titlePart2">Architect</span>
-            </h1>
-            <p class="text-gray-600 text-lg max-w-2xl mx-auto font-light leading-relaxed" data-i18n="subtitle">
-                Professional, bug-free, and high-converting landing pages. Ready to download and deploy.
-            </p>
-        </header>
-
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
-            <!-- Sidebar -->
-            <div class="lg:col-span-4 space-y-8">
-                <div class="monochrome-panel p-8">
-                    <h2 class="text-lg font-bold mb-8 uppercase tracking-tighter" data-i18n="projectDetails">Project Details</h2>
-                    
-                    <div class="space-y-6">
-                        <div>
-                            <label class="block text-[10px] uppercase tracking-[0.2em] font-black text-black mb-2" data-i18n="labelProduct">Product Name</label>
-                            <input id="productName" type="text" data-i18n-placeholder="placeholderProduct"
-                                class="w-full p-4 rounded-none bg-white border border-gray-300 focus:border-black outline-none transition-all text-sm">
-                        </div>
-
-                        <div>
-                            <label class="block text-[10px] uppercase tracking-[0.2em] font-black text-black mb-2" data-i18n="labelAudience">Target Audience</label>
-                            <input id="audience" type="text" data-i18n-placeholder="placeholderAudience"
-                                class="w-full p-4 rounded-none bg-white border border-gray-300 focus:border-black outline-none transition-all text-sm">
-                        </div>
-
-                        <div>
-                            <label class="block text-[10px] uppercase tracking-[0.2em] font-black text-black mb-2" data-i18n="labelGoal">Primary Goal</label>
-                            <select id="goal" class="w-full p-4 rounded-none bg-white border border-gray-300 focus:border-black outline-none transition-all text-sm cursor-pointer">
-                                <option value="Direct Sales" data-i18n="goalSales">Direct Sales</option>
-                                <option value="Lead Generation" data-i18n="goalLeads">Lead Generation</option>
-                                <option value="Booking" data-i18n="goalBooking">Consultation Booking</option>
-                                <option value="App Download" data-i18n="goalApp">App Download</option>
-                            </select>
-                        </div>
-
-                        <button onclick="generatePage()" id="genBtn" class="w-full btn-classic font-bold py-5 uppercase tracking-widest text-xs flex justify-center items-center gap-3 mt-4">
-                            <span id="btnText" data-i18n="btnBuild">Build My Page</span>
-                            <svg id="arrowIcon" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Output -->
-            <div class="lg:col-span-8">
-                <div id="loadingArea" class="hidden border border-black p-32 flex flex-col items-center justify-center text-center">
-                    <div class="loader ease-linear rounded-full border-2 border-t-2 border-gray-200 h-12 w-12 mb-6"></div>
-                    <h3 class="text-xl font-bold uppercase tracking-widest text-black" data-i18n="loadingTitle">Processing...</h3>
-                </div>
-
-                <div id="outputContainer" class="hidden space-y-6">
-                    <div class="flex flex-wrap justify-between items-center gap-4">
-                        <div class="flex bg-gray-100 p-1 border border-gray-200">
-                            <button onclick="setView('preview')" id="viewPrev" class="px-8 py-2 text-xs font-bold uppercase transition-all bg-black text-white" data-i18n="tabPreview">Preview</button>
-                            <button onclick="setView('code')" id="viewCode" class="px-8 py-2 text-xs font-bold uppercase transition-all text-gray-500 hover:text-black" data-i18n="tabCode">Code</button>
-                        </div>
-                        <div class="flex gap-2">
-                            <button onclick="copyCode(event)" class="px-6 py-2 border border-black text-xs font-bold uppercase hover:bg-gray-50 transition-all flex items-center gap-2">
-                                <span data-i18n="btnCopy">Copy</span>
-                            </button>
-                            <button onclick="downloadPage()" class="px-6 py-2 bg-black text-white text-xs font-bold uppercase hover:opacity-80 transition-all flex items-center gap-2">
-                                <span data-i18n="btnDownload">Download</span>
-                                <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div class="border border-black overflow-hidden min-h-[650px] shadow-[15px_15px_0px_0px_rgba(0,0,0,0.05)]">
-                        <div id="previewTab" class="w-full flex h-full">
-                            <iframe id="livePreview" class="w-full border-none min-h-[650px]"></iframe>
-                        </div>
-                        <div id="codeTab" class="hidden w-full bg-white p-8 custom-scrollbar overflow-auto max-h-[700px]">
-                            <pre><code id="codeDisplay" class="text-gray-800 text-xs font-mono leading-loose"></code></pre>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="placeholder" class="border border-dashed border-gray-300 p-32 flex flex-col items-center justify-center text-center">
-                    <h3 class="text-xl font-light text-gray-300 uppercase tracking-[0.3em]" data-i18n="readyTitle">Design Waiting</h3>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        // الرمز المضاف مسبقاً للعمل على GitHub
-        const apiKey = "AIzaSyCBgwlvA70Xs_ri2-YCO7t2flAvua5Qo2Y"; 
-        let currentLang = 'en';
-
-        const i18n = {
-            en: {
-                poweredBy: "Powered by Gemini 2.5 Flash",
-                titlePart1: "AI Landing Page",
-                titlePart2: "Architect",
-                subtitle: "Professional, bug-free, and high-converting landing pages. Ready to download and deploy.",
-                projectDetails: "Project Details",
-                labelProduct: "Product Name",
-                placeholderProduct: "e.g. Nexus SaaS",
-                labelAudience: "Target Audience",
-                placeholderAudience: "e.g. Modern Professionals",
-                labelGoal: "Primary Goal",
-                goalSales: "Direct Sales",
-                goalLeads: "Lead Generation",
-                goalBooking: "Consultation",
-                goalApp: "App Download",
-                btnBuild: "Build My Page",
-                btnBuilding: "Building...",
-                loadingTitle: "Processing...",
-                tabPreview: "Preview",
-                tabCode: "Code",
-                btnCopy: "Copy",
-                btnDownload: "Download HTML",
-                readyTitle: "Design Waiting",
-                alertEmpty: "Please fill in both fields.",
-                copySuccess: "Copied",
-                noApiKey: "Error: API Key is missing."
-            },
-            ar: {
-                poweredBy: "مدعوم بواسطة Gemini 2.5 Flash",
-                titlePart1: "مهندس صفحات",
-                titlePart2: "الهبوط الذكي",
-                subtitle: "صفحات هبوط احترافية، بدون أخطاء برمجية، وعالية التحويل. جاهزة للتحميل والنشر فوراً.",
-                projectDetails: "تفاصيل المشروع",
-                labelProduct: "اسم المنتج",
-                placeholderProduct: "مثلاً: منصة رفيق",
-                labelAudience: "الفئة المستهدفة",
-                placeholderAudience: "مثلاً: الشركات الناشئة",
-                labelGoal: "الهدف الأساسي",
-                goalSales: "مبيعات مباشرة",
-                goalLeads: "جمع بيانات",
-                goalBooking: "حجز استشارة",
-                goalApp: "تحميل تطبيق",
-                btnBuild: "أنشئ الصفحة",
-                btnBuilding: "جاري البناء...",
-                loadingTitle: "جاري المعالجة...",
-                tabPreview: "معاينة",
-                tabCode: "الكود",
-                btnCopy: "نسخ",
-                btnDownload: "تحميل HTML",
-                readyTitle: "التصميم بانتظارك",
-                alertEmpty: "يرجى ملء كافة الحقول.",
-                copySuccess: "تم النسخ",
-                noApiKey: "خطأ: مفتاح API مفقود."
-            }
-        };
-
-        function toggleLanguage(lang) {
-            currentLang = lang;
-            const htmlTag = document.getElementById('htmlTag');
-            const langEn = document.getElementById('langEn');
-            const langAr = document.getElementById('langAr');
-            htmlTag.lang = lang;
-            htmlTag.dir = lang === 'ar' ? 'rtl' : 'ltr';
-
-            if (lang === 'ar') {
-                langAr.className = "px-6 py-1.5 text-xs font-bold transition-all bg-black text-white";
-                langEn.className = "px-6 py-1.5 text-xs font-bold transition-all text-black hover:bg-gray-100";
-            } else {
-                langEn.className = "px-6 py-1.5 text-xs font-bold transition-all bg-black text-white";
-                langAr.className = "px-6 py-1.5 text-xs font-bold transition-all text-black hover:bg-gray-100";
-            }
-
-            document.querySelectorAll('[data-i18n]').forEach(el => el.innerText = i18n[lang][el.getAttribute('data-i18n')]);
-            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => el.placeholder = i18n[lang][el.getAttribute('data-i18n-placeholder')]);
-        }
-
-        async function fetchAIResponse(prompt) {
-            const systemPrompt = `You are a Master Landing Page Architect. 
-            Output ONLY raw HTML/Tailwind CSS. NO markdown, NO commentary.
-            Requirements:
-            - Professional, high-end, conversion-focused design.
-            - Language: ${currentLang === 'ar' ? 'Arabic' : 'English'}.
-            - Direction: ${currentLang === 'ar' ? 'rtl' : 'ltr'}.
-            - Fully responsive and mobile-friendly.
-            - Include: Hero, Features (with icons), Testimonials, FAQ, Footer.
-            - Use modern Google Fonts and Tailwind's best practices.
-            - No external JS files, keep everything in one HTML structure.`;
-
-            let retries = 5;
-            for (let i = 0; i < retries; i++) {
-                try {
-                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            contents: [{ parts: [{ text: prompt }] }],
-                            systemInstruction: { parts: [{ text: systemPrompt }] }
-                        })
-                    });
-                    if (!response.ok) throw new Error('API Error');
-                    const data = await response.json();
-                    return data.candidates?.[0]?.content?.parts?.[0]?.text;
-                } catch (error) {
-                    if (i === retries - 1) throw error;
-                    await new Promise(r => setTimeout(r, 1000 * Math.pow(2, i)));
-                }
-            }
-        }
-
-        async function generatePage() {
-            const product = document.getElementById('productName').value;
-            const audience = document.getElementById('audience').value;
-            const goal = document.getElementById('goal').value;
-
-            if (!product || !audience) {
-                alert(i18n[currentLang].alertEmpty);
-                return;
-            }
-
-            document.getElementById('genBtn').disabled = true;
-            document.getElementById('btnText').innerText = i18n[currentLang].btnBuilding;
-            document.getElementById('loadingArea').classList.remove('hidden');
-            document.getElementById('outputContainer').classList.add('hidden');
-            document.getElementById('placeholder').classList.add('hidden');
-
-            const prompt = `Create a high-converting landing page for ${product}, targeting ${audience}. The goal is ${goal}. Use a professional, clean design.`;
-
-            try {
-                let result = await fetchAIResponse(prompt);
-                const cleanCode = result.replace(/```html|```/gi, '').trim();
-                document.getElementById('codeDisplay').textContent = cleanCode;
-                document.getElementById('livePreview').srcdoc = cleanCode;
-                document.getElementById('loadingArea').classList.add('hidden');
-                document.getElementById('outputContainer').classList.remove('hidden');
-                setView('preview');
-            } catch (error) {
-                alert("Error. Please try again.");
-                document.getElementById('loadingArea').classList.add('hidden');
-                document.getElementById('placeholder').classList.remove('hidden');
-            } finally {
-                document.getElementById('genBtn').disabled = false;
-                document.getElementById('btnText').innerText = i18n[currentLang].btnBuild;
-            }
-        }
-
-        function setView(view) {
-            const previewTab = document.getElementById('previewTab');
-            const codeTab = document.getElementById('codeTab');
-            const btnPrev = document.getElementById('viewPrev');
-            const btnCode = document.getElementById('viewCode');
-
-            if (view === 'preview') {
-                previewTab.classList.remove('hidden');
-                codeTab.classList.add('hidden');
-                btnPrev.className = "px-8 py-2 text-xs font-bold uppercase transition-all bg-black text-white";
-                btnCode.className = "px-8 py-2 text-xs font-bold uppercase transition-all text-gray-500 hover:text-black";
-            } else {
-                previewTab.classList.add('hidden');
-                codeTab.classList.remove('hidden');
-                btnCode.className = "px-8 py-2 text-xs font-bold uppercase transition-all bg-black text-white";
-                btnPrev.className = "px-8 py-2 text-xs font-bold uppercase transition-all text-gray-500 hover:text-black";
-            }
-        }
-
-        function copyCode(e) {
-            const text = document.getElementById('codeDisplay').textContent;
-            const dummy = document.createElement("textarea");
-            document.body.appendChild(dummy);
-            dummy.value = text;
-            dummy.select();
-            document.execCommand('copy');
-            document.body.removeChild(dummy);
-            const btn = e.currentTarget;
-            const old = btn.innerHTML;
-            btn.innerHTML = `<span class="text-green-600">${i18n[currentLang].copySuccess}</span>`;
-            setTimeout(() => btn.innerHTML = old, 2000);
-        }
-
-        function downloadPage() {
-            const code = document.getElementById('codeDisplay').textContent;
-            const blob = new Blob([code], { type: 'text/html' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'landing-page.html';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
-    </script>
+        `).join('')}
+    </section>
 </body>
-</html>
+</html>`;
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `landing-${formData.productName}.html`;
+    a.click();
+  };
+
+  return (
+    <div className={`min-h-screen ${theme === 'dark' ? 'bg-[#050505] text-white' : 'bg-white text-black'} transition-colors duration-300`} dir={LANGUAGES[lang].dir}>
+      <AnimatePresence mode="wait">
+        {view === 'home' ? (
+          <motion.div key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="min-h-screen flex flex-col items-center justify-center p-8 text-center">
+            <div className="mb-10 w-16 h-16 bg-white text-black rounded-2xl flex items-center justify-center shadow-2xl"><Sparkles size={32} fill="black"/></div>
+            <h1 className="text-6xl md:text-8xl font-black italic uppercase mb-6 tracking-tighter">{t.home.hero}</h1>
+            <p className="text-xl text-white/40 max-w-2xl mb-10">{t.home.sub}</p>
+            <button onClick={() => setView('editor')} className="px-12 py-6 bg-white text-black rounded-2xl font-black uppercase flex items-center gap-4 hover:scale-105 transition-transform active:scale-95 shadow-xl shadow-white/10">
+              {t.home.start} <ArrowRight size={24} />
+            </button>
+          </motion.div>
+        ) : (
+          <div className="h-screen flex flex-col">
+            <header className="h-16 border-b border-white/10 flex items-center justify-between px-6 backdrop-blur-md">
+              <div className="flex items-center gap-3 cursor-pointer" onClick={() => setView('home')}>
+                <div className="w-8 h-8 bg-white text-black rounded-lg flex items-center justify-center"><Sparkles size={16} fill="black"/></div>
+                <span className="font-black italic uppercase">Builder.pro</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <button onClick={() => setLang(l => l === 'ar' ? 'fr' : 'ar')} className="text-[10px] font-black uppercase px-3 py-1 border border-white/10 rounded-lg">{LANGUAGES[lang === 'ar' ? 'fr' : 'ar'].label}</button>
+                <button onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} className="p-2 border border-white/10 rounded-xl">{theme === 'dark' ? <Sun size={18}/> : <Moon size={18}/>}</button>
+              </div>
+            </header>
+
+            <main className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+              <aside className={`w-full lg:w-[400px] border-white/10 ${lang === 'ar' ? 'border-l' : 'border-r'} p-8 overflow-y-auto bg-white/[0.02]`}>
+                <div className="flex justify-between mb-8">
+                  {[1,2,3].map(i => <div key={i} className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black ${step >= i ? 'bg-white text-black' : 'bg-white/5 text-white/20'}`}>{i}</div>)}
+                </div>
+
+                {step === 1 && (
+                  <div className="space-y-4">
+                    <label className="text-[10px] font-black uppercase opacity-30 tracking-widest">{t.fields.name}</label>
+                    <input className="w-full bg-white/5 border border-white/10 rounded-xl p-4 outline-none focus:border-white transition-all" value={formData.productName} onChange={e => setFormData({...formData, productName: e.target.value})} />
+                    <label className="text-[10px] font-black uppercase opacity-30 tracking-widest">{t.fields.type}</label>
+                    <input className="w-full bg-white/5 border border-white/10 rounded-xl p-4 outline-none focus:border-white transition-all" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})} />
+                  </div>
+                )}
+
+                {step === 2 && (
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <h2 className="font-black italic uppercase">AI Generation</h2>
+                      <button onClick={handleAICompose} disabled={isGenerating || !formData.productName} className="p-2 bg-white text-black rounded-lg hover:rotate-12 transition-transform disabled:opacity-20">
+                        {isGenerating ? <RefreshCcw className="animate-spin" size={16}/> : <Wand2 size={16}/>}
+                      </button>
+                    </div>
+                    {errorMsg && <p className="text-red-500 text-xs font-bold">{errorMsg}</p>}
+                    <textarea rows={3} className="w-full bg-white/5 border border-white/10 rounded-xl p-4 outline-none focus:border-white transition-all resize-none" value={formData.headline} onChange={e => setFormData({...formData, headline: e.target.value})} />
+                    <textarea rows={5} className="w-full bg-white/5 border border-white/10 rounded-xl p-4 outline-none focus:border-white transition-all resize-none text-white/60" value={formData.subheadline} onChange={e => setFormData({...formData, subheadline: e.target.value})} />
+                  </div>
+                )}
+
+                {step === 3 && (
+                  <div className="space-y-4">
+                    {formData.features.map((f, i) => (
+                      <div key={i} className="p-4 bg-white/5 border border-white/10 rounded-xl space-y-2">
+                        <input className="bg-transparent font-bold w-full outline-none" value={f.title} onChange={e => {
+                          let nf = [...formData.features]; nf[i].title = e.target.value; setFormData({...formData, features: nf});
+                        }} />
+                        <textarea className="bg-transparent text-xs text-white/40 w-full outline-none resize-none" value={f.desc} onChange={e => {
+                          let nf = [...formData.features]; nf[i].desc = e.target.value; setFormData({...formData, features: nf});
+                        }} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="mt-8 flex gap-3">
+                  {step > 1 && <button onClick={() => setStep(s => s - 1)} className="flex-1 py-4 border border-white/10 rounded-xl font-bold uppercase text-xs">Back</button>}
+                  <button onClick={() => step < 3 ? setStep(s => s + 1) : handleDownload()} className="flex-[2] py-4 bg-white text-black rounded-xl font-black uppercase text-xs active:scale-95 transition-transform">
+                    {step === 3 ? "Export Page" : "Next Step"}
+                  </button>
+                </div>
+              </aside>
+
+              <section className="flex-1 p-6 lg:p-12 bg-black/50 overflow-y-auto">
+                <div className="bg-white text-black min-h-full rounded-[2.5rem] overflow-hidden shadow-2xl" dir={LANGUAGES[lang].dir}>
+                  <nav className="p-6 flex justify-between items-center border-b">
+                    <div className="font-black text-xl">{formData.productName || "Brand"}</div>
+                    <button className="px-5 py-2 rounded-full bg-black text-white text-xs font-bold">{formData.ctaText}</button>
+                  </nav>
+                  <div className="py-20 px-8 text-center max-w-3xl mx-auto">
+                    <h1 className="text-5xl font-black mb-6 leading-tight">{formData.headline}</h1>
+                    <p className="text-lg text-gray-500 mb-10">{formData.subheadline}</p>
+                    <button className="px-8 py-4 rounded-xl bg-black text-white font-black shadow-lg">{formData.ctaText}</button>
+                  </div>
+                  <div className="px-8 pb-20 grid md:grid-cols-3 gap-6">
+                    {formData.features.map((f, i) => (
+                      <div key={i} className="p-6 border border-gray-100 rounded-2xl">
+                        <div className="w-10 h-10 bg-gray-50 rounded-lg flex items-center justify-center mb-4"><Zap size={20}/></div>
+                        <h3 className="font-bold mb-2">{f.title}</h3>
+                        <p className="text-sm text-gray-400">{f.desc}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </section>
+            </main>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
