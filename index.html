@@ -1,104 +1,363 @@
 <!DOCTYPE html>
-<html lang="ar">
+<html lang="en" id="htmlTag">
 <head>
-<meta charset="UTF-8">
-<title>Landing Page Generator</title>
-
-<style>
-body {
-  font-family: Arial;
-  background:#0f172a;
-  color:white;
-  padding:40px;
-}
-
-input, select, button {
-  padding:12px;
-  margin:8px 0;
-  width:100%;
-  border-radius:8px;
-  border:none;
-}
-
-button {
-  background:#22c55e;
-  font-weight:bold;
-  cursor:pointer;
-}
-
-#output {
-  background:white;
-  color:black;
-  padding:20px;
-  margin-top:20px;
-  border-radius:10px;
-  white-space:pre-wrap;
-}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Landing Page Architect | Professional Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Cairo:wght@400;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-font: 'Inter', sans-serif;
+            --heading-font: 'Playfair Display', serif;
+        }
+        [lang="ar"] {
+            --primary-font: 'Cairo', sans-serif;
+        }
+        body {
+            font-family: var(--primary-font);
+            background-color: #ffffff;
+            color: #000000;
+            overflow-x: hidden;
+        }
+        .monochrome-panel {
+            background: #ffffff;
+            border: 1px solid #000000;
+            box-shadow: 10px 10px 0px 0px #000000;
+        }
+        .btn-classic {
+            background-color: #000000;
+            color: #ffffff;
+            transition: all 0.3s ease;
+            border: 1px solid #000000;
+        }
+        .btn-classic:hover {
+            background-color: #ffffff;
+            color: #000000;
+        }
+        .loader {
+            border-top-color: #000000;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f3f4f6;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #000000;
+        }
+        iframe {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+        }
+        h1 {
+            font-family: var(--heading-font);
+        }
+    </style>
 </head>
+<body class="min-h-screen">
 
-<body>
+    <div class="max-w-7xl mx-auto px-4 py-8 lg:py-12">
+        <!-- Header & Lang -->
+        <div class="flex justify-between items-center mb-12">
+            <div class="text-xs font-black uppercase tracking-tighter">Edition 2.0</div>
+            <div class="inline-flex bg-white p-1 border border-black">
+                <button onclick="toggleLanguage('en')" id="langEn" class="px-6 py-1.5 text-xs font-bold transition-all bg-black text-white">EN</button>
+                <button onclick="toggleLanguage('ar')" id="langAr" class="px-6 py-1.5 text-xs font-bold transition-all text-black hover:bg-gray-100">عربي</button>
+            </div>
+        </div>
 
-<h1>🚀 Landing Page Generator</h1>
+        <header class="text-center mb-20 space-y-6">
+            <div class="inline-block px-4 py-1 border border-black text-black text-xs font-bold uppercase tracking-widest">
+                <span data-i18n="poweredBy">Powered by Gemini 2.5 Flash</span>
+            </div>
+            <h1 class="text-5xl lg:text-7xl font-bold tracking-tighter text-black">
+                <span data-i18n="titlePart1">AI Landing Page</span> <br>
+                <span class="italic" data-i18n="titlePart2">Architect</span>
+            </h1>
+            <p class="text-gray-600 text-lg max-w-2xl mx-auto font-light leading-relaxed" data-i18n="subtitle">
+                Professional, bug-free, and high-converting landing pages. Ready to download and deploy.
+            </p>
+        </header>
 
-<input id="product" placeholder="اسم المنتج">
-<input id="audience" placeholder="الفئة المستهدفة">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+            <!-- Sidebar -->
+            <div class="lg:col-span-4 space-y-8">
+                <div class="monochrome-panel p-8">
+                    <h2 class="text-lg font-bold mb-8 uppercase tracking-tighter" data-i18n="projectDetails">Project Details</h2>
+                    
+                    <div class="space-y-6">
+                        <div>
+                            <label class="block text-[10px] uppercase tracking-[0.2em] font-black text-black mb-2" data-i18n="labelProduct">Product Name</label>
+                            <input id="productName" type="text" data-i18n-placeholder="placeholderProduct"
+                                class="w-full p-4 rounded-none bg-white border border-gray-300 focus:border-black outline-none transition-all text-sm">
+                        </div>
 
-<select id="goal">
-  <option>بيع منتج</option>
-  <option>جمع إيميلات</option>
-  <option>حجز مواعيد</option>
-</select>
+                        <div>
+                            <label class="block text-[10px] uppercase tracking-[0.2em] font-black text-black mb-2" data-i18n="labelAudience">Target Audience</label>
+                            <input id="audience" type="text" data-i18n-placeholder="placeholderAudience"
+                                class="w-full p-4 rounded-none bg-white border border-gray-300 focus:border-black outline-none transition-all text-sm">
+                        </div>
 
-<button onclick="generate()">توليد الصفحة</button>
+                        <div>
+                            <label class="block text-[10px] uppercase tracking-[0.2em] font-black text-black mb-2" data-i18n="labelGoal">Primary Goal</label>
+                            <select id="goal" class="w-full p-4 rounded-none bg-white border border-gray-300 focus:border-black outline-none transition-all text-sm cursor-pointer">
+                                <option value="Direct Sales" data-i18n="goalSales">Direct Sales</option>
+                                <option value="Lead Generation" data-i18n="goalLeads">Lead Generation</option>
+                                <option value="Booking" data-i18n="goalBooking">Consultation Booking</option>
+                                <option value="App Download" data-i18n="goalApp">App Download</option>
+                            </select>
+                        </div>
 
-<div id="output"></div>
+                        <button onclick="generatePage()" id="genBtn" class="w-full btn-classic font-bold py-5 uppercase tracking-widest text-xs flex justify-center items-center gap-3 mt-4">
+                            <span id="btnText" data-i18n="btnBuild">Build My Page</span>
+                            <svg id="arrowIcon" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
 
-<script>
+            <!-- Output -->
+            <div class="lg:col-span-8">
+                <div id="loadingArea" class="hidden border border-black p-32 flex flex-col items-center justify-center text-center">
+                    <div class="loader ease-linear rounded-full border-2 border-t-2 border-gray-200 h-12 w-12 mb-6"></div>
+                    <h3 class="text-xl font-bold uppercase tracking-widest text-black" data-i18n="loadingTitle">Processing...</h3>
+                </div>
 
-function pick(arr){
-  return arr[Math.floor(Math.random()*arr.length)]
-}
+                <div id="outputContainer" class="hidden space-y-6">
+                    <div class="flex flex-wrap justify-between items-center gap-4">
+                        <div class="flex bg-gray-100 p-1 border border-gray-200">
+                            <button onclick="setView('preview')" id="viewPrev" class="px-8 py-2 text-xs font-bold uppercase transition-all bg-black text-white" data-i18n="tabPreview">Preview</button>
+                            <button onclick="setView('code')" id="viewCode" class="px-8 py-2 text-xs font-bold uppercase transition-all text-gray-500 hover:text-black" data-i18n="tabCode">Code</button>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="copyCode(event)" class="px-6 py-2 border border-black text-xs font-bold uppercase hover:bg-gray-50 transition-all flex items-center gap-2">
+                                <span data-i18n="btnCopy">Copy</span>
+                            </button>
+                            <button onclick="downloadPage()" class="px-6 py-2 bg-black text-white text-xs font-bold uppercase hover:opacity-80 transition-all flex items-center gap-2">
+                                <span data-i18n="btnDownload">Download</span>
+                                <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="border border-black overflow-hidden min-h-[650px] shadow-[15px_15px_0px_0px_rgba(0,0,0,0.05)]">
+                        <div id="previewTab" class="w-full flex h-full">
+                            <iframe id="livePreview" class="w-full border-none min-h-[650px]"></iframe>
+                        </div>
+                        <div id="codeTab" class="hidden w-full bg-white p-8 custom-scrollbar overflow-auto max-h-[700px]">
+                            <pre><code id="codeDisplay" class="text-gray-800 text-xs font-mono leading-loose"></code></pre>
+                        </div>
+                    </div>
+                </div>
 
-function generate(){
+                <div id="placeholder" class="border border-dashed border-gray-300 p-32 flex flex-col items-center justify-center text-center">
+                    <h3 class="text-xl font-light text-gray-300 uppercase tracking-[0.3em]" data-i18n="readyTitle">Design Waiting</h3>
+                </div>
+            </div>
+        </div>
+    </div>
 
-  const name = document.getElementById("product").value
-  const audience = document.getElementById("audience").value
-  const goal = document.getElementById("goal").value
+    <script>
+        const apiKey = ""; 
+        let currentLang = 'en';
 
-  const headlines = [
-    `أفضل حل لـ ${audience}`,
-    `ضاعف نتائجك مع ${name}`,
-    `${name} سيغير طريقتك`,
-    `حل ذكي لـ ${audience}`
-  ]
+        const i18n = {
+            en: {
+                poweredBy: "Powered by Gemini 2.5 Flash",
+                titlePart1: "AI Landing Page",
+                titlePart2: "Architect",
+                subtitle: "Professional, bug-free, and high-converting landing pages. Ready to download and deploy.",
+                projectDetails: "Project Details",
+                labelProduct: "Product Name",
+                placeholderProduct: "e.g. Nexus SaaS",
+                labelAudience: "Target Audience",
+                placeholderAudience: "e.g. Modern Professionals",
+                labelGoal: "Primary Goal",
+                goalSales: "Direct Sales",
+                goalLeads: "Lead Generation",
+                goalBooking: "Consultation",
+                goalApp: "App Download",
+                btnBuild: "Build My Page",
+                btnBuilding: "Building...",
+                loadingTitle: "Processing...",
+                tabPreview: "Preview",
+                tabCode: "Code",
+                btnCopy: "Copy",
+                btnDownload: "Download HTML",
+                readyTitle: "Design Waiting",
+                alertEmpty: "Please fill in both fields.",
+                copySuccess: "Copied"
+            },
+            ar: {
+                poweredBy: "مدعوم بواسطة Gemini 2.5 Flash",
+                titlePart1: "مهندس صفحات",
+                titlePart2: "الهبوط الذكي",
+                subtitle: "صفحات هبوط احترافية، بدون أخطاء برمجية، وعالية التحويل. جاهزة للتحميل والنشر فوراً.",
+                projectDetails: "تفاصيل المشروع",
+                labelProduct: "اسم المنتج",
+                placeholderProduct: "مثلاً: منصة رفيق",
+                labelAudience: "الفئة المستهدفة",
+                placeholderAudience: "مثلاً: الشركات الناشئة",
+                labelGoal: "الهدف الأساسي",
+                goalSales: "مبيعات مباشرة",
+                goalLeads: "جمع بيانات",
+                goalBooking: "حجز استشارة",
+                goalApp: "تحميل تطبيق",
+                btnBuild: "أنشئ الصفحة",
+                btnBuilding: "جاري البناء...",
+                loadingTitle: "جاري المعالجة...",
+                tabPreview: "معاينة",
+                tabCode: "الكود",
+                btnCopy: "نسخ",
+                btnDownload: "تحميل HTML",
+                readyTitle: "التصميم بانتظارك",
+                alertEmpty: "يرجى ملء كافة الحقول.",
+                copySuccess: "تم النسخ"
+            }
+        };
 
-  const headline = pick(headlines)
+        function toggleLanguage(lang) {
+            currentLang = lang;
+            const htmlTag = document.getElementById('htmlTag');
+            const langEn = document.getElementById('langEn');
+            const langAr = document.getElementById('langAr');
+            htmlTag.lang = lang;
+            htmlTag.dir = lang === 'ar' ? 'rtl' : 'ltr';
 
-  const html = `
-<section style="font-family:Arial;padding:40px;text-align:center">
-<h1>${headline}</h1>
-<h2>${name}</h2>
-<p>مصمم خصيصًا لـ ${audience}</p>
+            if (lang === 'ar') {
+                langAr.className = "px-6 py-1.5 text-xs font-bold transition-all bg-black text-white";
+                langEn.className = "px-6 py-1.5 text-xs font-bold transition-all text-black hover:bg-gray-100";
+            } else {
+                langEn.className = "px-6 py-1.5 text-xs font-bold transition-all bg-black text-white";
+                langAr.className = "px-6 py-1.5 text-xs font-bold transition-all text-black hover:bg-gray-100";
+            }
 
-<ul style="text-align:right;max-width:400px;margin:auto">
-<li>سهل الاستخدام</li>
-<li>نتائج سريعة</li>
-<li>بدون تعقيد</li>
-<li>جاهز للعمل فورًا</li>
-</ul>
+            document.querySelectorAll('[data-i18n]').forEach(el => el.innerText = i18n[lang][el.getAttribute('data-i18n')]);
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => el.placeholder = i18n[lang][el.getAttribute('data-i18n-placeholder')]);
+        }
 
-<button style="padding:15px 30px;font-size:18px">
-ابدأ الآن
-</button>
+        async function fetchAIResponse(prompt) {
+            const systemPrompt = `You are a Master Landing Page Architect. 
+            Output ONLY raw HTML/Tailwind CSS. NO markdown, NO commentary.
+            Requirements:
+            - Professional, high-end, conversion-focused design.
+            - Language: ${currentLang === 'ar' ? 'Arabic' : 'English'}.
+            - Direction: ${currentLang === 'ar' ? 'rtl' : 'ltr'}.
+            - Fully responsive and mobile-friendly.
+            - Include: Hero, Features (with icons), Testimonials, FAQ, Footer.
+            - Use modern Google Fonts and Tailwind's best practices.
+            - Ensure all images have descriptive alt text.
+            - No external JS files, keep everything in one HTML structure.`;
 
-</section>
-`
+            let retries = 5;
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: prompt }] }],
+                            systemInstruction: { parts: [{ text: systemPrompt }] }
+                        })
+                    });
+                    if (!response.ok) throw new Error('API Error');
+                    const data = await response.json();
+                    return data.candidates?.[0]?.content?.parts?.[0]?.text;
+                } catch (error) {
+                    if (i === retries - 1) throw error;
+                    await new Promise(r => setTimeout(r, 1000 * Math.pow(2, i)));
+                }
+            }
+        }
 
-  document.getElementById("output").textContent = html
-}
+        async function generatePage() {
+            const product = document.getElementById('productName').value;
+            const audience = document.getElementById('audience').value;
+            const goal = document.getElementById('goal').value;
 
-</script>
+            if (!product || !audience) {
+                alert(i18n[currentLang].alertEmpty);
+                return;
+            }
 
+            document.getElementById('genBtn').disabled = true;
+            document.getElementById('btnText').innerText = i18n[currentLang].btnBuilding;
+            document.getElementById('loadingArea').classList.remove('hidden');
+            document.getElementById('outputContainer').classList.add('hidden');
+            document.getElementById('placeholder').classList.add('hidden');
+
+            const prompt = `Create a high-converting landing page for ${product}, targeting ${audience}. The goal is ${goal}. Use a professional, clean, monochrome-inspired design. Use Arabic text if language is set to AR. Ensure it is bug-free.`;
+
+            try {
+                let result = await fetchAIResponse(prompt);
+                const cleanCode = result.replace(/```html|```/gi, '').trim();
+                document.getElementById('codeDisplay').textContent = cleanCode;
+                document.getElementById('livePreview').srcdoc = cleanCode;
+                document.getElementById('loadingArea').classList.add('hidden');
+                document.getElementById('outputContainer').classList.remove('hidden');
+                setView('preview');
+            } catch (error) {
+                alert("Error. Please try again.");
+                document.getElementById('placeholder').classList.remove('hidden');
+            } finally {
+                document.getElementById('genBtn').disabled = false;
+                document.getElementById('btnText').innerText = i18n[currentLang].btnBuild;
+            }
+        }
+
+        function setView(view) {
+            const previewTab = document.getElementById('previewTab');
+            const codeTab = document.getElementById('codeTab');
+            const btnPrev = document.getElementById('viewPrev');
+            const btnCode = document.getElementById('viewCode');
+
+            if (view === 'preview') {
+                previewTab.classList.remove('hidden');
+                codeTab.classList.add('hidden');
+                btnPrev.className = "px-8 py-2 text-xs font-bold uppercase transition-all bg-black text-white";
+                btnCode.className = "px-8 py-2 text-xs font-bold uppercase transition-all text-gray-500 hover:text-black";
+            } else {
+                previewTab.classList.add('hidden');
+                codeTab.classList.remove('hidden');
+                btnCode.className = "px-8 py-2 text-xs font-bold uppercase transition-all bg-black text-white";
+                btnPrev.className = "px-8 py-2 text-xs font-bold uppercase transition-all text-gray-500 hover:text-black";
+            }
+        }
+
+        function copyCode(e) {
+            const text = document.getElementById('codeDisplay').textContent;
+            const dummy = document.createElement("textarea");
+            document.body.appendChild(dummy);
+            dummy.value = text;
+            dummy.select();
+            document.execCommand('copy');
+            document.body.removeChild(dummy);
+            const btn = e.currentTarget;
+            const old = btn.innerHTML;
+            btn.innerHTML = `<span class="text-green-600">${i18n[currentLang].copySuccess}</span>`;
+            setTimeout(() => btn.innerHTML = old, 2000);
+        }
+
+        function downloadPage() {
+            const code = document.getElementById('codeDisplay').textContent;
+            const blob = new Blob([code], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'landing-page.html';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    </script>
 </body>
 </html>
