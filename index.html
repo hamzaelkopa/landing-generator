@@ -166,7 +166,8 @@
     </div>
 
     <script>
-        const apiKey = ""; 
+        // الرمز المضاف مسبقاً للعمل على GitHub
+        const apiKey = "AIzaSyCBgwlvA70Xs_ri2-YCO7t2flAvua5Qo2Y"; 
         let currentLang = 'en';
 
         const i18n = {
@@ -194,7 +195,8 @@
                 btnDownload: "Download HTML",
                 readyTitle: "Design Waiting",
                 alertEmpty: "Please fill in both fields.",
-                copySuccess: "Copied"
+                copySuccess: "Copied",
+                noApiKey: "Error: API Key is missing."
             },
             ar: {
                 poweredBy: "مدعوم بواسطة Gemini 2.5 Flash",
@@ -220,7 +222,8 @@
                 btnDownload: "تحميل HTML",
                 readyTitle: "التصميم بانتظارك",
                 alertEmpty: "يرجى ملء كافة الحقول.",
-                copySuccess: "تم النسخ"
+                copySuccess: "تم النسخ",
+                noApiKey: "خطأ: مفتاح API مفقود."
             }
         };
 
@@ -254,7 +257,6 @@
             - Fully responsive and mobile-friendly.
             - Include: Hero, Features (with icons), Testimonials, FAQ, Footer.
             - Use modern Google Fonts and Tailwind's best practices.
-            - Ensure all images have descriptive alt text.
             - No external JS files, keep everything in one HTML structure.`;
 
             let retries = 5;
@@ -294,7 +296,7 @@
             document.getElementById('outputContainer').classList.add('hidden');
             document.getElementById('placeholder').classList.add('hidden');
 
-            const prompt = `Create a high-converting landing page for ${product}, targeting ${audience}. The goal is ${goal}. Use a professional, clean, monochrome-inspired design. Use Arabic text if language is set to AR. Ensure it is bug-free.`;
+            const prompt = `Create a high-converting landing page for ${product}, targeting ${audience}. The goal is ${goal}. Use a professional, clean design.`;
 
             try {
                 let result = await fetchAIResponse(prompt);
@@ -306,6 +308,7 @@
                 setView('preview');
             } catch (error) {
                 alert("Error. Please try again.");
+                document.getElementById('loadingArea').classList.add('hidden');
                 document.getElementById('placeholder').classList.remove('hidden');
             } finally {
                 document.getElementById('genBtn').disabled = false;
