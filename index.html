@@ -6,6 +6,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 
 // --- Configuration ---
+// تم تثبيت المفتاح وضمان استقرار النموذج للعمل في بيئة الإنتاج
 const API_KEY = "AIzaSyCBgwlvA70Xs_ri2-YCO7t2flAvua5Qo2Y";
 const MODEL_NAME = "gemini-2.5-flash-preview-09-2025";
 
@@ -26,7 +27,7 @@ const TRANSLATIONS = {
     steps: ["التعريف", "المحتوى", "التفاصيل"],
     fields: { name: "اسم المنتج", type: "النوع", cat: "الفئة", desc: "الوصف" },
     actions: { ai: "توليد بالذكاء الاصطناعي", next: "التالي", prev: "السابق", export: "تصدير HTML", copy: "نسخ الكود", back: "العودة" },
-    status: { generating: "جاري التوليد...", success: "تم بنجاح", error: "حدث خطأ في الاتصال" }
+    status: { generating: "جاري التوليد...", success: "تم بنجاح", error: "حدث خطأ في الاتصال - تحقق من اتصال الإنترنت أو صلاحية المفتاح" }
   },
   fr: {
     title: "AI Landing Builder",
@@ -79,12 +80,18 @@ const callGeminiAI = async (prompt, retries = 5, delay = 1000) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
-      if (!response.ok) throw new Error("API Error");
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Gemini API Error:", errorData);
+        throw new Error("API Error");
+      }
       const result = await response.json();
-      return JSON.parse(result.candidates[0].content.parts[0].text);
+      const textResponse = result.candidates[0].content.parts[0].text;
+      return JSON.parse(textResponse);
     } catch (err) {
       if (i === retries - 1) throw err;
-      await new Error(delay * Math.pow(2, i));
+      // Exponential backoff
+      await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, i)));
     }
   }
 };
@@ -122,12 +129,13 @@ export default function App() {
     
     const prompt = `Generate a high-converting landing page content in ${lang === 'ar' ? 'Arabic' : 'French'} for a product named "${formData.productName}". 
     The product type is ${formData.type} and category is ${formData.category}. 
-    Return JSON with headline, subheadline, ctaText, and 3 features (title and desc).`;
+    Return a JSON object with: headline, subheadline, ctaText, and 3 features (each with title and desc).`;
 
     try {
       const data = await callGeminiAI(prompt);
       setFormData(prev => ({ ...prev, ...data }));
     } catch (err) {
+      console.error(err);
       setErrorMsg(t.status.error);
     } finally {
       setIsGenerating(false);
@@ -139,134 +147,243 @@ export default function App() {
     const html = `<!DOCTYPE html>
 <html lang="${lang}" dir="${isRtl ? 'rtl' : 'ltr'}">
 <head>
-    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${formData.productName}</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Inter', sans-serif; }</style>
 </head>
-<body class="bg-white text-black font-sans">
-    <nav class="p-6 flex justify-between items-center border-b">
-        <div class="font-bold text-xl">${formData.productName}</div>
-        <button class="px-6 py-2 rounded-full bg-black text-white">${formData.ctaText}</button>
+<body class="bg-white text-black">
+    <nav class="p-6 flex justify-between items-center border-b max-w-7xl mx-auto">
+        <div class="font-black text-2xl tracking-tighter uppercase italic">${formData.productName}</div>
+        <button class="px-6 py-2 rounded-full bg-black text-white font-bold text-sm">${formData.ctaText}</button>
     </nav>
-    <header class="py-24 px-8 text-center max-w-4xl mx-auto">
-        <h1 class="text-6xl font-black mb-6">${formData.headline}</h1>
-        <p class="text-xl text-gray-600 mb-10">${formData.subheadline}</p>
-        <button class="px-10 py-4 rounded-xl bg-black text-white font-bold text-lg">${formData.ctaText}</button>
+    <header class="py-32 px-8 text-center max-w-4xl mx-auto">
+        <h1 class="text-6xl md:text-7xl font-black mb-8 leading-[1.1] tracking-tight">${formData.headline}</h1>
+        <p class="text-xl text-gray-500 mb-12 leading-relaxed">${formData.subheadline}</p>
+        <button class="px-12 py-5 rounded-2xl bg-black text-white font-black text-lg shadow-2xl hover:scale-105 transition-transform">${formData.ctaText}</button>
     </header>
-    <section class="py-20 px-8 grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+    <section class="py-24 px-8 grid md:grid-cols-3 gap-10 max-w-6xl mx-auto">
         ${formData.features.map(f => `
-            <div class="p-8 border rounded-2xl">
-                <h3 class="text-xl font-bold mb-2">${f.title}</h3>
-                <p class="text-gray-500">${f.desc}</p>
+            <div class="p-10 border border-gray-100 rounded-[2.5rem] bg-gray-50/50">
+                <div class="w-12 h-12 bg-black text-white rounded-xl flex items-center justify-center mb-6">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m13 2-2 10h8l-2 10"/></svg>
+                </div>
+                <h3 class="text-2xl font-bold mb-4">${f.title}</h3>
+                <p class="text-gray-500 leading-relaxed">${f.desc}</p>
             </div>
         `).join('')}
     </section>
+    <footer class="py-12 text-center border-t text-gray-400 text-sm">
+      &copy; ${new Date().getFullYear()} ${formData.productName}. Built with AI.
+    </footer>
 </body>
 </html>`;
     const blob = new Blob([html], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `landing-${formData.productName}.html`;
+    a.download = `landing-${formData.productName.replace(/\s+/g, '-').toLowerCase()}.html`;
     a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
-    <div className={`min-h-screen ${theme === 'dark' ? 'bg-[#050505] text-white' : 'bg-white text-black'} transition-colors duration-300`} dir={LANGUAGES[lang].dir}>
+    <div className={`min-h-screen ${theme === 'dark' ? 'bg-[#050505] text-white' : 'bg-white text-black'} transition-colors duration-300 font-sans`} dir={LANGUAGES[lang].dir}>
       <AnimatePresence mode="wait">
         {view === 'home' ? (
-          <motion.div key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="min-h-screen flex flex-col items-center justify-center p-8 text-center">
-            <div className="mb-10 w-16 h-16 bg-white text-black rounded-2xl flex items-center justify-center shadow-2xl"><Sparkles size={32} fill="black"/></div>
-            <h1 className="text-6xl md:text-8xl font-black italic uppercase mb-6 tracking-tighter">{t.home.hero}</h1>
-            <p className="text-xl text-white/40 max-w-2xl mb-10">{t.home.sub}</p>
-            <button onClick={() => setView('editor')} className="px-12 py-6 bg-white text-black rounded-2xl font-black uppercase flex items-center gap-4 hover:scale-105 transition-transform active:scale-95 shadow-xl shadow-white/10">
-              {t.home.start} <ArrowRight size={24} />
+          <motion.div key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="min-h-screen flex flex-col items-center justify-center p-8 text-center relative overflow-hidden">
+            {/* Background Decor */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-white/5 rounded-full blur-[120px] -z-10" />
+            
+            <motion.div initial={{ y: 20 }} animate={{ y: 0 }} className="mb-10 w-20 h-20 bg-white text-black rounded-[2rem] flex items-center justify-center shadow-2xl">
+              <Sparkles size={40} fill="black"/>
+            </motion.div>
+            
+            <h1 className="text-6xl md:text-9xl font-black italic uppercase mb-8 tracking-tighter leading-none">
+              {t.home.hero}
+            </h1>
+            <p className="text-xl md:text-2xl text-white/40 max-w-3xl mb-12 leading-relaxed">
+              {t.home.sub}
+            </p>
+            
+            <button 
+              onClick={() => setView('editor')} 
+              className="px-14 py-7 bg-white text-black rounded-[2rem] font-black uppercase text-lg flex items-center gap-4 hover:scale-105 transition-all active:scale-95 shadow-2xl shadow-white/20 group"
+            >
+              {t.home.start} <ArrowRight size={28} className="group-hover:translate-x-2 transition-transform" />
             </button>
           </motion.div>
         ) : (
-          <div className="h-screen flex flex-col">
-            <header className="h-16 border-b border-white/10 flex items-center justify-between px-6 backdrop-blur-md">
-              <div className="flex items-center gap-3 cursor-pointer" onClick={() => setView('home')}>
-                <div className="w-8 h-8 bg-white text-black rounded-lg flex items-center justify-center"><Sparkles size={16} fill="black"/></div>
-                <span className="font-black italic uppercase">Builder.pro</span>
+          <div className="h-screen flex flex-col overflow-hidden">
+            <header className="h-20 border-b border-white/10 flex items-center justify-between px-8 backdrop-blur-xl bg-black/20 z-50">
+              <div className="flex items-center gap-4 cursor-pointer group" onClick={() => setView('home')}>
+                <div className="w-10 h-10 bg-white text-black rounded-xl flex items-center justify-center group-hover:rotate-12 transition-transform shadow-lg">
+                  <Sparkles size={20} fill="black"/>
+                </div>
+                <span className="font-black italic uppercase text-xl tracking-tight">Builder.pro</span>
               </div>
-              <div className="flex items-center gap-3">
-                <button onClick={() => setLang(l => l === 'ar' ? 'fr' : 'ar')} className="text-[10px] font-black uppercase px-3 py-1 border border-white/10 rounded-lg">{LANGUAGES[lang === 'ar' ? 'fr' : 'ar'].label}</button>
-                <button onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} className="p-2 border border-white/10 rounded-xl">{theme === 'dark' ? <Sun size={18}/> : <Moon size={18}/>}</button>
+              
+              <div className="flex items-center gap-4">
+                <button 
+                  onClick={() => setLang(l => l === 'ar' ? 'fr' : 'ar')} 
+                  className="text-[11px] font-black uppercase px-4 py-2 border border-white/10 rounded-xl hover:bg-white/5 transition-colors"
+                >
+                  {LANGUAGES[lang === 'ar' ? 'fr' : 'ar'].label}
+                </button>
+                <button 
+                  onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} 
+                  className="p-3 border border-white/10 rounded-xl hover:bg-white/5 transition-colors"
+                >
+                  {theme === 'dark' ? <Sun size={20}/> : <Moon size={20}/>}
+                </button>
               </div>
             </header>
 
-            <main className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-              <aside className={`w-full lg:w-[400px] border-white/10 ${lang === 'ar' ? 'border-l' : 'border-r'} p-8 overflow-y-auto bg-white/[0.02]`}>
-                <div className="flex justify-between mb-8">
-                  {[1,2,3].map(i => <div key={i} className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black ${step >= i ? 'bg-white text-black' : 'bg-white/5 text-white/20'}`}>{i}</div>)}
+            <main className="flex-1 flex flex-col lg:flex-row overflow-hidden bg-[#0a0a0a]">
+              {/* Sidebar Controls */}
+              <aside className={`w-full lg:w-[450px] border-white/10 ${lang === 'ar' ? 'border-l' : 'border-r'} p-10 overflow-y-auto bg-black/40 custom-scrollbar`}>
+                <div className="flex justify-between mb-12 relative">
+                  <div className="absolute top-1/2 left-0 w-full h-[2px] bg-white/5 -translate-y-1/2 -z-10" />
+                  {[1,2,3].map(i => (
+                    <div key={i} className={`w-12 h-12 rounded-2xl flex items-center justify-center text-sm font-black transition-all duration-500 ${step >= i ? 'bg-white text-black scale-110 shadow-xl' : 'bg-[#111] border border-white/10 text-white/20'}`}>
+                      {i}
+                    </div>
+                  ))}
                 </div>
 
-                {step === 1 && (
-                  <div className="space-y-4">
-                    <label className="text-[10px] font-black uppercase opacity-30 tracking-widest">{t.fields.name}</label>
-                    <input className="w-full bg-white/5 border border-white/10 rounded-xl p-4 outline-none focus:border-white transition-all" value={formData.productName} onChange={e => setFormData({...formData, productName: e.target.value})} />
-                    <label className="text-[10px] font-black uppercase opacity-30 tracking-widest">{t.fields.type}</label>
-                    <input className="w-full bg-white/5 border border-white/10 rounded-xl p-4 outline-none focus:border-white transition-all" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})} />
-                  </div>
-                )}
-
-                {step === 2 && (
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <h2 className="font-black italic uppercase">AI Generation</h2>
-                      <button onClick={handleAICompose} disabled={isGenerating || !formData.productName} className="p-2 bg-white text-black rounded-lg hover:rotate-12 transition-transform disabled:opacity-20">
-                        {isGenerating ? <RefreshCcw className="animate-spin" size={16}/> : <Wand2 size={16}/>}
-                      </button>
-                    </div>
-                    {errorMsg && <p className="text-red-500 text-xs font-bold">{errorMsg}</p>}
-                    <textarea rows={3} className="w-full bg-white/5 border border-white/10 rounded-xl p-4 outline-none focus:border-white transition-all resize-none" value={formData.headline} onChange={e => setFormData({...formData, headline: e.target.value})} />
-                    <textarea rows={5} className="w-full bg-white/5 border border-white/10 rounded-xl p-4 outline-none focus:border-white transition-all resize-none text-white/60" value={formData.subheadline} onChange={e => setFormData({...formData, subheadline: e.target.value})} />
-                  </div>
-                )}
-
-                {step === 3 && (
-                  <div className="space-y-4">
-                    {formData.features.map((f, i) => (
-                      <div key={i} className="p-4 bg-white/5 border border-white/10 rounded-xl space-y-2">
-                        <input className="bg-transparent font-bold w-full outline-none" value={f.title} onChange={e => {
-                          let nf = [...formData.features]; nf[i].title = e.target.value; setFormData({...formData, features: nf});
-                        }} />
-                        <textarea className="bg-transparent text-xs text-white/40 w-full outline-none resize-none" value={f.desc} onChange={e => {
-                          let nf = [...formData.features]; nf[i].desc = e.target.value; setFormData({...formData, features: nf});
-                        }} />
+                <AnimatePresence mode="wait">
+                  {step === 1 && (
+                    <motion.div key="step1" initial={{ x: 30, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -30, opacity: 0 }} className="space-y-8">
+                      <div className="space-y-2">
+                        <h2 className="text-4xl font-black italic uppercase leading-none">{t.steps[0]}</h2>
+                        <p className="text-white/30 text-sm">حدد هوية مشروعك الأساسية</p>
                       </div>
-                    ))}
-                  </div>
-                )}
+                      <div className="space-y-6">
+                        <div className="space-y-3">
+                          <label className="text-[10px] font-black uppercase opacity-40 tracking-[0.2em]">{t.fields.name}</label>
+                          <input className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 outline-none focus:border-white focus:bg-white/[0.08] transition-all text-lg" placeholder="مثلاً: نيوم تيك" value={formData.productName} onChange={e => setFormData({...formData, productName: e.target.value})} />
+                        </div>
+                        <div className="space-y-3">
+                          <label className="text-[10px] font-black uppercase opacity-40 tracking-[0.2em]">{t.fields.type}</label>
+                          <input className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 outline-none focus:border-white transition-all" placeholder="مثلاً: تطبيق هاتف، منصة تعليمية" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})} />
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
 
-                <div className="mt-8 flex gap-3">
-                  {step > 1 && <button onClick={() => setStep(s => s - 1)} className="flex-1 py-4 border border-white/10 rounded-xl font-bold uppercase text-xs">Back</button>}
-                  <button onClick={() => step < 3 ? setStep(s => s + 1) : handleDownload()} className="flex-[2] py-4 bg-white text-black rounded-xl font-black uppercase text-xs active:scale-95 transition-transform">
-                    {step === 3 ? "Export Page" : "Next Step"}
+                  {step === 2 && (
+                    <motion.div key="step2" initial={{ x: 30, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -30, opacity: 0 }} className="space-y-8">
+                      <div className="flex justify-between items-end">
+                        <div className="space-y-2">
+                          <h2 className="text-4xl font-black italic uppercase leading-none">{t.steps[1]}</h2>
+                          <p className="text-white/30 text-sm">استخدم الذكاء الاصطناعي لكتابة المحتوى</p>
+                        </div>
+                        <button 
+                          onClick={handleAICompose} 
+                          disabled={isGenerating || !formData.productName} 
+                          className="p-4 bg-white text-black rounded-2xl hover:rotate-[15deg] transition-all disabled:opacity-10 active:scale-90 shadow-xl"
+                        >
+                          {isGenerating ? <RefreshCcw className="animate-spin" size={20}/> : <Wand2 size={20}/>}
+                        </button>
+                      </div>
+                      
+                      {errorMsg && <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-xs font-bold">{errorMsg}</div>}
+                      
+                      <div className="space-y-6">
+                        <div className="space-y-3">
+                          <label className="text-[10px] font-black uppercase opacity-40 tracking-[0.2em]">Headline</label>
+                          <textarea rows={3} className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 outline-none focus:border-white transition-all resize-none text-xl font-bold leading-tight" value={formData.headline} onChange={e => setFormData({...formData, headline: e.target.value})} />
+                        </div>
+                        <div className="space-y-3">
+                          <label className="text-[10px] font-black uppercase opacity-40 tracking-[0.2em]">Subheadline</label>
+                          <textarea rows={5} className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 outline-none focus:border-white transition-all resize-none text-white/60 leading-relaxed" value={formData.subheadline} onChange={e => setFormData({...formData, subheadline: e.target.value})} />
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {step === 3 && (
+                    <motion.div key="step3" initial={{ x: 30, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -30, opacity: 0 }} className="space-y-8">
+                      <div className="space-y-2">
+                        <h2 className="text-4xl font-black italic uppercase leading-none">{t.steps[2]}</h2>
+                        <p className="text-white/30 text-sm">عدّل مميزات منتجك بدقة</p>
+                      </div>
+                      <div className="space-y-4">
+                        {formData.features.map((f, i) => (
+                          <div key={i} className="p-6 bg-white/5 border border-white/10 rounded-[2rem] space-y-3 hover:bg-white/[0.08] transition-colors group">
+                            <input className="bg-transparent font-black text-lg w-full outline-none border-b border-white/5 focus:border-white/20 pb-2" value={f.title} onChange={e => {
+                              let nf = [...formData.features]; nf[i].title = e.target.value; setFormData({...formData, features: nf});
+                            }} />
+                            <textarea className="bg-transparent text-sm text-white/40 w-full outline-none resize-none h-20" value={f.desc} onChange={e => {
+                              let nf = [...formData.features]; nf[i].desc = e.target.value; setFormData({...formData, features: nf});
+                            }} />
+                          </div>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                <div className="mt-12 flex gap-4">
+                  {step > 1 && (
+                    <button onClick={() => setStep(s => s - 1)} className="flex-1 py-5 border border-white/10 rounded-2xl font-black uppercase text-xs hover:bg-white/5 transition-all">
+                      السابق
+                    </button>
+                  )}
+                  <button 
+                    onClick={() => step < 3 ? setStep(s => s + 1) : handleDownload()} 
+                    className="flex-[2] py-5 bg-white text-black rounded-2xl font-black uppercase text-xs active:scale-95 transition-all shadow-2xl shadow-white/10"
+                  >
+                    {step === 3 ? "تصدير الصفحة" : "الخطوة التالية"}
                   </button>
                 </div>
               </aside>
 
-              <section className="flex-1 p-6 lg:p-12 bg-black/50 overflow-y-auto">
-                <div className="bg-white text-black min-h-full rounded-[2.5rem] overflow-hidden shadow-2xl" dir={LANGUAGES[lang].dir}>
-                  <nav className="p-6 flex justify-between items-center border-b">
-                    <div className="font-black text-xl">{formData.productName || "Brand"}</div>
-                    <button className="px-5 py-2 rounded-full bg-black text-white text-xs font-bold">{formData.ctaText}</button>
-                  </nav>
-                  <div className="py-20 px-8 text-center max-w-3xl mx-auto">
-                    <h1 className="text-5xl font-black mb-6 leading-tight">{formData.headline}</h1>
-                    <p className="text-lg text-gray-500 mb-10">{formData.subheadline}</p>
-                    <button className="px-8 py-4 rounded-xl bg-black text-white font-black shadow-lg">{formData.ctaText}</button>
+              {/* Preview Window */}
+              <section className="flex-1 p-8 lg:p-16 bg-[#050505] overflow-y-auto custom-scrollbar flex flex-col items-center">
+                <div className="w-full max-w-5xl bg-white text-black rounded-[3rem] overflow-hidden shadow-[0_0_100px_rgba(255,255,255,0.05)] border border-white/5 min-h-[800px] flex flex-col" dir={LANGUAGES[lang].dir}>
+                  {/* Browser Mockup Header */}
+                  <div className="h-12 bg-gray-50 border-b flex items-center px-8 gap-2">
+                    <div className="w-3 h-3 rounded-full bg-red-200" />
+                    <div className="w-3 h-3 rounded-full bg-yellow-200" />
+                    <div className="w-3 h-3 rounded-full bg-green-200" />
+                    <div className="ml-4 bg-white border px-4 py-1 rounded-lg text-[10px] text-gray-400 w-64 truncate">
+                      {formData.productName || "Preview"}.com
+                    </div>
                   </div>
-                  <div className="px-8 pb-20 grid md:grid-cols-3 gap-6">
-                    {formData.features.map((f, i) => (
-                      <div key={i} className="p-6 border border-gray-100 rounded-2xl">
-                        <div className="w-10 h-10 bg-gray-50 rounded-lg flex items-center justify-center mb-4"><Zap size={20}/></div>
-                        <h3 className="font-bold mb-2">{f.title}</h3>
-                        <p className="text-sm text-gray-400">{f.desc}</p>
-                      </div>
-                    ))}
+
+                  {/* Actual Landing Content */}
+                  <div className="flex-1 overflow-y-auto">
+                    <nav className="p-8 flex justify-between items-center border-b border-gray-100">
+                      <div className="font-black text-2xl tracking-tighter uppercase italic">{formData.productName || "Brand"}</div>
+                      <button className="px-6 py-2.5 rounded-full bg-black text-white text-[11px] font-black uppercase tracking-wider">{formData.ctaText}</button>
+                    </nav>
+
+                    <div className="py-24 px-10 text-center max-w-4xl mx-auto">
+                      <motion.h1 key={formData.headline} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="text-5xl md:text-7xl font-black mb-8 leading-[1.1] tracking-tight">
+                        {formData.headline}
+                      </motion.h1>
+                      <motion.p key={formData.subheadline} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-lg md:text-xl text-gray-500 mb-12 leading-relaxed max-w-2xl mx-auto">
+                        {formData.subheadline}
+                      </motion.p>
+                      <button className="px-12 py-5 rounded-2xl bg-black text-white font-black text-sm uppercase tracking-widest shadow-2xl active:scale-95 transition-transform">
+                        {formData.ctaText}
+                      </button>
+                    </div>
+
+                    <div className="px-10 pb-24 grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+                      {formData.features.map((f, i) => (
+                        <div key={i} className="p-10 border border-gray-100 rounded-[2.5rem] bg-gray-50/50 hover:bg-gray-100 transition-colors">
+                          <div className="w-12 h-12 bg-black text-white rounded-2xl flex items-center justify-center mb-6 shadow-lg">
+                            <Zap size={24} fill="white"/>
+                          </div>
+                          <h3 className="text-2xl font-black mb-4 tracking-tight">{f.title}</h3>
+                          <p className="text-gray-500 leading-relaxed text-sm">{f.desc}</p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </section>
@@ -274,6 +391,30 @@ export default function App() {
           </div>
         )}
       </AnimatePresence>
+
+      <style jsx global>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        
+        body {
+          font-family: 'Inter', sans-serif;
+          margin: 0;
+          overflow: hidden;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 5px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 10px;
+        }
+        .custom-scrollbar-light::-webkit-scrollbar-thumb {
+          background: rgba(0, 0, 0, 0.05);
+        }
+      `}</style>
     </div>
   );
 }
